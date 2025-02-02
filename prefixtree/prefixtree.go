@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/spf13/cast"
 )
@@ -64,9 +65,15 @@ func main() {
     n0 := &Node{false, -1, -1, n00, nil}
     //@ fold n0.PrefixSubtree(seq[bool]{false})
 
-    _ = &Node{false, -1, -1, n0, nil}
+    n := &Node{false, -1, -1, n0, nil}
     //@ fold n.PrefixSubtree(seq[bool]{})
     //@ fold n.PrefixTree()
+
+	fmt.Printf("%p: %+v\n", n, n)
+	fmt.Printf("%p:   %+v\n", n0, n0)
+	fmt.Printf("%p:     %+v\n", n00, n00)
+	fmt.Printf("%p:       %+v\n", n000, n000)
+	fmt.Printf("%p:       %+v\n", n001, n001)
 }
 
 /*@
