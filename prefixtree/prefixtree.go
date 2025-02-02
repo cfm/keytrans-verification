@@ -1,6 +1,10 @@
-package prefixtree
+package main
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/spf13/cast"
+)
 
 type Node struct {
     hasData bool
@@ -28,7 +32,9 @@ type BitConversion domain {
 //@ ensures acc(res)
 //@ ensures len(res) == len(GetBits(key))
 //@ ensures forall i int :: { res[i] } 0 <= i && i < len(res) ==> res[i] == GetBits(key)[i]
-func ComputeBits(key int) (res []bool)
+func ComputeBits(key int) (res []bool) {
+	return cast.ToBoolSlice(key)
+}
 
 /*@
 pred (n *Node) PrefixTree() {
@@ -43,7 +49,7 @@ pred (n *Node) PrefixSubtree(prefix seq[bool]) {
 }
 @*/
 
-func test() {
+func main() {
     n000 := &Node{true, 0, 42, nil, nil}
     //@ assume GetBits(0) == seq[bool]{false, false, false}
     //@ fold n000.PrefixSubtree(seq[bool]{false, false, false})
@@ -58,7 +64,7 @@ func test() {
     n0 := &Node{false, -1, -1, n00, nil}
     //@ fold n0.PrefixSubtree(seq[bool]{false})
 
-    n := &Node{false, -1, -1, n0, nil}
+    _ = &Node{false, -1, -1, n0, nil}
     //@ fold n.PrefixSubtree(seq[bool]{})
     //@ fold n.PrefixTree()
 }
@@ -108,6 +114,7 @@ func HashNodeData(n *Node /*@, ghost prefix seq[bool] @*/) (res int) {
     //@ unfold acc(n.PrefixSubtree(prefix), 1/4)
     res = HashData(n.key, n.value)
     //@ fold acc(n.PrefixSubtree(prefix), 1/4)
+	return res
 }
 
 //@ trusted
@@ -170,6 +177,7 @@ func CheckInclusionWithoutTree(key int, value int, rootHash int, copath []int, /
     if res {
         //@ UniqueCopathLemma(key, value, copath, n, p/2)
     }
+	return res
 }
 
 /*@
