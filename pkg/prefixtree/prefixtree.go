@@ -179,16 +179,13 @@ pure func (n *Node) prefixSubtreeContains(prefix seq[bool], key uint64, value in
 
 // copath is sorted such that hashes for subtrees deeper in the prefix tree appear later in the slice
 //@ requires  noPerm < p
-//@ requires low(key)
+//@ requires len(copath) == len(GetBits(key))
 //@ requires low(rootHash)
 //@ preserves acc(copath, p)
 //@ preserves acc(n.PrefixTree(), p) && rootHash == n.prefixTreeHash()
 //@ ensures   res ==> n.prefixTreeContains(key, value)
 //@ ensures   res ==> low(value)
 func CheckInclusionWithoutTree(key uint64, value int, rootHash int, copath []int /*@, ghost n *Node, ghost p perm @*/) (res bool) {
-	if len(copath) != len(ComputeBits(key)) {
-		return false
-	}
 	computedHash := ComputePath(key, value, copath /*@, n, p/2 @*/)
 	res = computedHash == rootHash
 	if res {
@@ -226,7 +223,8 @@ pure func PureComputePath(i int, leafHash int, copath []int, keyBits seq[bool]) 
 ghost
 decreases
 requires noPerm < p && acc(copath, p)
-requires low(rootHash) && low(keyBits)
+requires len(copath) == len(keyBits)
+requires low(rootHash)
 requires IsValidCoPath(rootHash, leafHash, copath, keyBits)
 ensures  acc(copath, p)
 ensures  low(leafHash)
@@ -241,7 +239,7 @@ requires noPerm < p && acc(copath, p)
 requires  0 <= i && i <= len(keyBits)
 requires leafHash != InexistentSubtreeHash
 requires len(copath) == len(keyBits)
-requires low(keyBits) && low(i)
+requires low(i)
 requires low(PureComputePath(i, leafHash, copath, keyBits))
 ensures  acc(copath, p)
 ensures  low(leafHash)
