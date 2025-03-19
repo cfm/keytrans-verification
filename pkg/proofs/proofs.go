@@ -2,6 +2,8 @@ package proofs
 
 import (
 	"crypto/sha256"
+
+	"github.com/felixlinker/keytrans-verification/pkg/vrf"
 )
 
 type NodeValue = [sha256.Size]byte
@@ -51,4 +53,17 @@ type CombinedTreeProof struct {
 	Timestamps    []uint64
 	Prefix_proofs []PrefixProof
 	Prefix_roots  []NodeValue
+}
+
+//@ ensures res.Leaf != nil ==> res.Result_type == NonInclusionLeaf
+func prefix_search() (res PrefixSearchResults) {
+	input := VrfInput {
+		"just a silly example",
+		42,
+	}
+	leaf := PrefixLeaf {
+		VRF_hash([]byte("very secret"), input),
+		VRF_hash([]byte("very secret"), input),
+	}
+	return PrefixSearchResults {Reserved, leaf, 0};
 }
