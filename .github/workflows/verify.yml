@@ -49,6 +49,7 @@ jobs:
             --module "$PKG_NAME" \
             --hyperMode extended \
             --recursive \
+            --include .verification \
             --excludePackages "$EXCLUDE_PKGS"
 
       - name: Upload Gobra statistics
