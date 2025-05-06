@@ -3,6 +3,7 @@ package proofs
 func FullBinaryLadderSteps(target uint32) (r []uint32) {
 	r = make([]uint32, 0)
 	var i uint32 = 1
+	//@ invariant acc(r)
 	for i-1 <= target {
 		r = append( /*@ perm(1/2), @*/ r, i-1)
 		i = i << 1
