@@ -43,7 +43,7 @@ type PrefixTree struct {
 // ascending by steps.Step.Vrf_output and that coPathNodes is sorted ascending
 // too. prefix will be initially empty and reflects the current position in the
 // prefix tree.
-//@ ensures err != nil ==> tree != nil && acc(tree.Inv())
+//@ ensures err == nil ==> tree != nil && acc(tree.Inv())
 func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNodes []NodeValue) (tree *PrefixTree, nextSteps []CompleteBinaryLadderStep, nextNodes []NodeValue, err error) {
 	tree = nil
 	nextSteps = steps
@@ -158,7 +158,7 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 // Construct a prefix tree from a prefix proof and the provided binary ladder
 // steps. We assume that the binary ladder steps are in the order that the
 // binary ladder would request them.
-//@ ensures err != nil ==> tree != nil && acc(tree.Inv()) && tree.Value != nil
+//@ ensures err == nil ==> acc(tree) && acc(tree.Inv()) && tree.Value != nil
 func (prf PrefixProof) ToTree(fullLadder []BinaryLadderStep) (tree *PrefixTree, err error) {
 	tree = &PrefixTree{}
 	if len(fullLadder) < len(prf.Results) {
@@ -177,7 +177,7 @@ func (prf PrefixProof) ToTree(fullLadder []BinaryLadderStep) (tree *PrefixTree, 
 	return
 }
 
-//@ ensures err != nil && tree != nil ==> tree.Value != nil
+//@ ensures err == nil && tree != nil ==> acc(tree) && acc(tree.Value)
 func (tree *PrefixTree) HashContent() (hashContent []byte, err error) {
 	hashContent = make([]byte, sha256.Size+1)
 	if tree == nil {
@@ -201,7 +201,7 @@ func (tree *PrefixTree) HashContent() (hashContent []byte, err error) {
 }
 
 // Recursively compute all hashes of a prefix tree.
-//@ ensures err != nil ==> tree.Value != nil && len(*tree.Value) == len(hash) && forall i int :: { (*tree.Value)[i] == hash[i] } i < len(hash)
+//@ ensures err == nil ==> acc(tree) && acc(tree.Value) && len(*tree.Value) == len(hash) && forall i int :: { (*tree.Value)[i] == hash[i] } i < len(hash)
 func (tree *PrefixTree) ComputeHash() (hash [sha256.Size]byte, err error) {
 	if tree == nil {
 		return [sha256.Size]byte{}, errors.New("cannot hash empty node")
