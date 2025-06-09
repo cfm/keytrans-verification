@@ -74,6 +74,11 @@ jobs:
       MOD_NAME: github.com/felixlinker/keytrans-verification
       EXCLUDE_PKGS: main
     steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update
+          apt-get install --yes make
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -103,6 +108,11 @@ jobs:
       MOD_NAME: github.com/felixlinker/keytrans-verification
       EXCLUDE_PKGS: "main"
     steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update
+          apt-get install --yes make
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -140,6 +150,11 @@ jobs:
       MOD_NAME: github.com/felixlinker/keytrans-verification
       EXCLUDE_PKGS: "main"
     steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update
+          apt-get install --yes make
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
