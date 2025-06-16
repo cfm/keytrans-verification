@@ -43,7 +43,8 @@ type PrefixTree struct {
 // ascending by steps.Step.Vrf_output and that coPathNodes is sorted ascending
 // too. prefix will be initially empty and reflects the current position in the
 // prefix tree.
-//@ ensures err == nil ==> tree != nil && acc(tree.Inv())
+//@ requires acc(steps)
+//@ ensures err == nil ==> tree.Inv()
 func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNodes []NodeValue) (tree *PrefixTree, nextSteps []CompleteBinaryLadderStep, nextNodes []NodeValue, err error) {
 	tree = nil
 	nextSteps = steps
@@ -158,9 +159,18 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 // Construct a prefix tree from a prefix proof and the provided binary ladder
 // steps. We assume that the binary ladder steps are in the order that the
 // binary ladder would request them.
-//@ ensures err == nil ==> acc(tree) && acc(tree.Inv()) && tree.Value != nil
+//@ requires prf.Inv()
+//@ requires acc(prf.Results, 1/2)
+//@ requires forall i int :: {prf.Results[i]} 0 <= i && i < len(prf.Results) ==> acc(&prf.Results[i], 1/2)
+//@ requires acc(fullLadder, 1/2)
+//@ requires forall i int :: {fullLadder[i]} 0 <= i && i < len(fullLadder) ==> acc(&fullLadder[i], 1/2)
+//@ ensures err == nil ==> tree.Inv()
 func (prf PrefixProof) ToTree(fullLadder []BinaryLadderStep) (tree *PrefixTree, err error) {
 	tree = &PrefixTree{}
+	//@ assert acc(prf.Results, 1/2)
+	//@ assert forall i int :: {prf.Results[i]} 0 <= i && i < len(prf.Results) ==> acc(&prf.Results[i], 1/2)
+	//@ assert acc(fullLadder, 1/2)
+	//@ assert forall i int :: {fullLadder[i]} 0 <= i && i < len(fullLadder) ==> acc(&fullLadder[i], 1/2)
 	if len(fullLadder) < len(prf.Results) {
 		return nil, errors.New("too many results")
 	}
