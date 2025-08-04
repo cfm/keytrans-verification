@@ -7,13 +7,14 @@ import (
 
 /*@
 pred (t *PrefixTree) Inv() {
-	acc(t) && (t != nil ==> t.InvRec())
+	acc(t, _) && (t != nil ==> acc(t.InvRec(), _))
 }
 
 pred (t PrefixTree) InvRec() {
-	acc(t.Value) && (t.Leaf != nil ==> acc(t.Leaf)) &&
-	(t.Left != nil ==> acc(t.Left) && acc(t.Left.Inv(), _)) &&
-	(t.Right != nil ==> acc(t.Right) && acc(t.Right.Inv(), _)) &&
+	acc(t.Value) &&
+	(t.Leaf != nil ==> acc(t.Leaf, _) && acc(t.Leaf.Inv(), _)) &&
+	(t.Left != nil ==> acc(t.Left, _) && acc(t.Left.Inv(), _)) &&
+	(t.Right != nil ==> acc(t.Right, _) && acc(t.Right.Inv(), _)) &&
 	// One of value, leaf, or both children must be defined
 	(t.Value != nil || t.Leaf != nil || (t.Left != nil && t.Right != nil)) &&
 	// If there's one children, there must be two
@@ -211,13 +212,16 @@ func (prf PrefixProof) ToTree(fullLadder []BinaryLadderStep) (tree *PrefixTree, 
 
 	//@ unfold prf.Inv()
 	if tree, _, _, err = ToTreeRecursive([]bool{}, steps, prf.Elements); err != nil {
+		//@ fold prf.Inv()
 		return
 	}
 	_, err = tree.ComputeHash()
+	//@ fold prf.Inv()
 	return
 }
 
-// @ preserves tree != nil ==> acc(tree.Inv(), _)
+// @ preserves acc(tree.Inv(), 1/2)
+// @ requires acc(tree.InvRec(), 1/2)
 // @ ensures err == nil && tree != nil ==> forall i int :: { &hashContent[i] } 0 <= i && i < len(hashContent) ==> acc(&hashContent[i])
 func (tree *PrefixTree) HashContent() (hashContent []byte, err error) {
 	hashContent = make([]byte, sha256.Size+1)
@@ -230,8 +234,8 @@ func (tree *PrefixTree) HashContent() (hashContent []byte, err error) {
 			return append( /*@ perm(1/2), @*/ []byte{0x01}, value[:]...), nil
 		}
 	} else {
-		//@ unfold acc(tree.Inv(), _)
-		//@ unfold acc(tree.InvRec(), _)
+		//@ unfold acc(tree.Inv(), 1/2)
+		//@ unfold acc(tree.InvRec(), 1/2)
 		if leftContent, err := tree.Left.HashContent(); err != nil {
 			return nil, err
 		} else if rightContent, err := tree.Right.HashContent(); err != nil {
@@ -244,27 +248,25 @@ func (tree *PrefixTree) HashContent() (hashContent []byte, err error) {
 }
 
 // Recursively compute all hashes of a prefix tree.
-// @ preserves tree != nil ==> acc(tree.Inv(), _)
+// @ preserves acc(tree.Inv(), 1/2)
+// @ requires acc(tree.InvRec(), 1/2)
 // @ ensures  tree != nil && err == nil ==> tree.GetValue() != nil && len(tree.GetValueArray()) == len(hash) && (forall i int :: { hash[i] } 0 <= i && i < len(hash) ==> (tree.GetValueArray())[i] == hash[i])
 func (tree *PrefixTree) ComputeHash() (hash [sha256.Size]byte, err error) {
 	if tree == nil {
 		return [sha256.Size]byte{}, errors.New("cannot hash empty node")
 	} else if /*@ unfolding acc(tree.Inv(), _) in unfolding acc(tree.InvRec(), _) in @*/ tree.Value != nil {
-		//@ unfold acc(tree.Inv(), _)
-		//@ unfold acc(tree.InvRec(), _)
-		return *tree.Value, nil
+		return /*@ unfolding acc(tree.Inv(), _) in unfolding acc(tree.InvRec(), _) in @*/ *tree.Value, nil
 	} else if /*@ unfolding acc(tree.Inv(), _) in unfolding acc(tree.InvRec(), _) in @*/ tree.Left == nil && tree.Right == nil {
-		//@ unfold acc(tree.Inv(), _)
-		//@ unfold acc(tree.InvRec(), _)
-		if tree.Leaf == nil {
+		if /*@ unfolding acc(tree.Inv(), _) in unfolding acc(tree.InvRec(), _) in @*/ tree.Leaf == nil {
 			return [sha256.Size]byte{}, errors.New("neither leaf nor value given for empty node")
 		} else {
 			// TODO: We would have to include length, too, to be compliant with TLS
 			// encoding, but not so important right now because inputs are
 			// fixed-length and this may get changed in the future
-			//@ unfold acc(tree.Inv(), _)
-			//@ unfold acc(tree.InvRec(), _)
-			value /*@ @ @*/ := sha256.Sum256(append( /*@ perm(1/2), @*/ tree.Leaf.Vrf_output[:], tree.Leaf.Commitment[:]...) /*@, perm(1/2) @*/)
+			//@ unfold acc(tree.Inv(), 1/2)
+			//@ unfold acc(tree.InvRec(), 1/2)
+			value /*@ @ @*/ := sha256.Sum256(
+				append( /*@ perm(1/2), @*/ tree.Leaf.Vrf_output[:], tree.Leaf.Commitment[:]...) /*@, perm(1/2) @*/)
 			tree.Value = &value
 			return value, nil
 		}
