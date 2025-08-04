@@ -61,8 +61,8 @@ type PrefixTree struct {
 // ascending by steps.Step.Vrf_output and that coPathNodes is sorted ascending
 // too. prefix will be initially empty and reflects the current position in the
 // prefix tree.
-// @ requires forall i int :: { coPathNodes[i] } 0 <= i && i < len(coPathNodes) ==> acc(&coPathNodes[i])
 // @ requires forall i int :: { steps[i] } 0 <= i && i < len(steps) ==> acc(&steps[i], _) && acc(steps[i].Inv(), _)
+// @ requires forall i int :: { coPathNodes[i] } 0 <= i && i < len(coPathNodes) ==> acc(&coPathNodes[i], _)
 // @ ensures err == nil ==> tree != nil && tree.Inv()
 func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNodes []NodeValue) (tree *PrefixTree, nextSteps []CompleteBinaryLadderStep, nextNodes []NodeValue, err error) {
 	tree = nil
@@ -90,10 +90,10 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 
 	prefixMatches := false
 	for i := 0; i < len(prefix); i++ {
-		//@ unfold step.Inv()
+		//@ unfold acc(step.Inv(), _)
 		bit := step.Step.Vrf_output[i/8]>>(i%8) == 0x01
 		prefixMatches = prefixMatches && bit == prefix[i]
-		//@ fold step.Inv()
+		//@ fold acc(step.Inv(), _)
 	}
 
 	if prefixMatches {
@@ -198,6 +198,7 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 // steps. We assume that the binary ladder steps are in the order that the
 // binary ladder would request them.
 // @ requires prf.Inv()
+// @ requires forall i int :: { fullLadder[i] } 0 <= i && i < len(fullLadder) ==> acc(&fullLadder[i], _)
 // @ ensures err == nil ==> tree != nil && tree.Inv()
 func (prf PrefixProof) ToTree(fullLadder []BinaryLadderStep) (tree *PrefixTree, err error) {
 	tree = &PrefixTree{}
@@ -206,17 +207,20 @@ func (prf PrefixProof) ToTree(fullLadder []BinaryLadderStep) (tree *PrefixTree, 
 	}
 
 	var steps []CompleteBinaryLadderStep
+	//@ unfold acc(prf.Inv(), _)
 	if steps, err = CombineResults(prf.Results, fullLadder); err != nil {
+		//@ fold acc(prf.Inv(), _)
 		return nil, err
 	}
+	//@ fold acc(prf.Inv(), _)
 
-	//@ unfold prf.Inv()
+	//@ unfold acc(prf.Inv(), _)
 	if tree, _, _, err = ToTreeRecursive([]bool{}, steps, prf.Elements); err != nil {
-		//@ fold prf.Inv()
+		//@ fold acc(prf.Inv(), _)
 		return
 	}
 	_, err = tree.ComputeHash()
-	//@ fold prf.Inv()
+	//@ fold acc(prf.Inv(), _)
 	return
 }
 

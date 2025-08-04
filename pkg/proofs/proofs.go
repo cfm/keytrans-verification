@@ -85,8 +85,12 @@ type PrefixProof struct {
 
 /*@
 pred (p PrefixProof) Inv() {
-	acc(p.Results) && (forall i int :: { p.Results[i] } 0 <= i && i < len(p.Elements) ==> acc(&p.Elements[i])) &&
-	acc(p.Elements) && (forall i int :: { p.Elements[i] } 0 <= i && i < len(p.Elements) ==> acc(&p.Elements[i]))
+	acc(p.Results, _) &&
+		(forall i int :: { p.Results[i] } 0 <= i && i < len(p.Elements) ==> acc(&p.Elements[i], _)) &&
+		(forall i, j int :: { &p.Results[i], &p.Results[j] } 0 <= i && i < len(p.Results) && 0 <= j && j < len(p.Results) && i != j ==> &p.Results[i] != &p.Results[j]) &&
+	acc(p.Elements, _) &&
+		(forall i int :: { p.Elements[i] } 0 <= i && i < len(p.Elements) ==> acc(&p.Elements[i], _)) &&
+		(forall i, j int :: { &p.Elements[i], &p.Elements[j] } 0 <= i && i < len(p.Elements) && 0 <= j && j < len(p.Elements) && i != j ==> &p.Elements[i] != &p.Elements[j])
 }
 @*/
 
@@ -111,15 +115,15 @@ type CompleteBinaryLadderStep struct {
 
 /*@
 pred (s *CompleteBinaryLadderStep) Inv() {
-    acc(s) &&
-	acc(&s.Step) &&
-	(&s.Step).Inv() &&
-	acc(&s.Result) &&
-	s.Result.Inv()
+    acc(s, _) &&
+		acc(&s.Step, _) &&
+			acc((&s.Step).Inv(), _) &&
+		acc(&s.Result, _) &&
+			acc((&s.Result).Inv(), _)
 }
 @*/
 
-// @ trusted
+// @ requires forall i int :: { steps[i] } 0 <= i && i < len(steps) ==> acc(&steps[i], _)
 // @ ensures forall i int :: { completeSteps[i] } 0 <= i && i < len(completeSteps) ==> acc(&completeSteps[i]) && acc(completeSteps[i].Inv())
 func CombineResults(results []PrefixSearchResult, steps []BinaryLadderStep) (completeSteps []CompleteBinaryLadderStep, err error) {
 	completeSteps = make([]CompleteBinaryLadderStep, 0, len(results))
@@ -128,11 +132,11 @@ func CombineResults(results []PrefixSearchResult, steps []BinaryLadderStep) (com
 	}
 
 	sortedSteps := make([]BinaryLadderStep, 0, len(results))
-	copy(sortedSteps, steps[:len(results)])
+	copy(sortedSteps, steps[:len(results)] /*@, perm(1/2) @*/)
 	sortBinaryLadderSteps(sortedSteps)
 
 	for i, step := range sortedSteps {
-		completeSteps = append(completeSteps, CompleteBinaryLadderStep{
+		completeSteps = append( /*@ perm(1/2), @*/ completeSteps, CompleteBinaryLadderStep{
 			Step: PrefixLeaf{
 				Vrf_output: crypto.VRF_proof_to_hash(step.Proof),
 				Commitment: step.Commitment,
