@@ -61,6 +61,7 @@ type PrefixTree struct {
 // ascending by steps.Step.Vrf_output and that coPathNodes is sorted ascending
 // too. prefix will be initially empty and reflects the current position in the
 // prefix tree.
+// @ requires forall i int :: { &prefix[i] } 0 <= i && i < len(prefix) ==> acc(&prefix[i], _)
 // @ requires forall i int :: { steps[i] } 0 <= i && i < len(steps) ==> acc(&steps[i], _) && acc(steps[i].Inv(), _)
 // @ requires forall i int :: { coPathNodes[i] } 0 <= i && i < len(coPathNodes) ==> acc(&coPathNodes[i], _)
 // @ ensures err == nil ==> tree != nil && tree.Inv()
@@ -86,14 +87,20 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 		}
 	}
 
-	step /*@@@*/ := steps[0]
+	step := steps[0]
 
 	prefixMatches := false
-	for i := 0; i < len(prefix); i++ {
-		//@ unfold acc(step.Inv(), _)
-		bit := step.Step.Vrf_output[i/8]>>(i%8) == 0x01
-		prefixMatches = prefixMatches && bit == prefix[i]
-		//@ fold acc(step.Inv(), _)
+	if len(prefix) > len(step.Step.Vrf_output)*8 {
+		err = errors.New("prefix longer than VRF output")
+		return
+	} else if len(prefix) > 0 {
+		//@ invariant 0 <= i && i <= len(prefix)
+		for i := 0; i < len(prefix); i++ {
+			//@ assert 0 <= i && i < len(prefix)
+			b := step.Step.Vrf_output[i/8]
+			bit := ((b >> uint(i%8)) & 1) == 1
+			prefixMatches = prefixMatches && bit == prefix[i]
+		}
 	}
 
 	if prefixMatches {
