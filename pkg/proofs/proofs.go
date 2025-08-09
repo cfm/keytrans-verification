@@ -123,7 +123,7 @@ pred (s *CompleteBinaryLadderStep) Inv() {
 }
 @*/
 
-// @ requires forall i int :: { steps[i] } 0 <= i && i < len(steps) ==> acc(&steps[i], _)
+// @ requires forall i int :: { steps[i] } 0 <= i && i < len(steps) ==> acc(&steps[i], 1/2)
 // @ ensures forall i int :: { completeSteps[i] } 0 <= i && i < len(completeSteps) ==> acc(&completeSteps[i]) && acc(completeSteps[i].Inv())
 func CombineResults(results []PrefixSearchResult, steps []BinaryLadderStep) (completeSteps []CompleteBinaryLadderStep, err error) {
 	completeSteps = make([]CompleteBinaryLadderStep, 0, len(results))
