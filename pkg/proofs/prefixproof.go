@@ -62,7 +62,7 @@ type PrefixTree struct {
 // too. prefix will be initially empty and reflects the current position in the
 // prefix tree.
 // @ requires forall i int :: { &prefix[i] } 0 <= i && i < len(prefix) ==> acc(&prefix[i], _)
-// @ requires forall i int :: { steps[i] } 0 <= i && i < len(steps) ==> acc(&steps[i], _) && acc(steps[i].Inv(), _)
+// @ requires forall i int :: { steps[i] } 0 <= i && i < len(steps) ==> acc(&steps[i], _)
 // @ requires forall i int :: { coPathNodes[i] } 0 <= i && i < len(coPathNodes) ==> acc(&coPathNodes[i], _)
 // @ ensures err == nil ==> tree != nil && tree.Inv()
 func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNodes []NodeValue) (tree *PrefixTree, nextSteps []CompleteBinaryLadderStep, nextNodes []NodeValue, err error) {
