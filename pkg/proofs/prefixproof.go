@@ -226,13 +226,14 @@ func (prf PrefixProof) ToTree(fullLadder []BinaryLadderStep) (tree *PrefixTree, 
 		//@ fold acc(prf.Inv(), _)
 		return
 	}
+	//@ unfold acc(tree.Inv(), 1/2)
 	_, err = tree.ComputeHash()
+	//@ fold acc(tree.Inv(), 1/2)
 	//@ fold acc(prf.Inv(), _)
 	return
 }
 
 // @ preserves acc(tree.Inv(), 1/2)
-// @ requires acc(tree.InvRec(), 1/2)
 // @ ensures err == nil && tree != nil ==> forall i int :: { &hashContent[i] } 0 <= i && i < len(hashContent) ==> acc(&hashContent[i])
 func (tree *PrefixTree) HashContent() (hashContent []byte, err error) {
 	hashContent = make([]byte, sha256.Size+1)
@@ -246,7 +247,6 @@ func (tree *PrefixTree) HashContent() (hashContent []byte, err error) {
 		}
 	} else {
 		//@ unfold acc(tree.Inv(), 1/2)
-		//@ unfold acc(tree.InvRec(), 1/2)
 		if leftContent, err := tree.Left.HashContent(); err != nil {
 			return nil, err
 		} else if rightContent, err := tree.Right.HashContent(); err != nil {
@@ -260,7 +260,6 @@ func (tree *PrefixTree) HashContent() (hashContent []byte, err error) {
 
 // Recursively compute all hashes of a prefix tree.
 // @ preserves acc(tree.Inv(), 1/2)
-// @ requires acc(tree.InvRec(), 1/2)
 // @ ensures  tree != nil && err == nil ==> tree.GetValue() != nil && len(tree.GetValueArray()) == len(hash) && (forall i int :: { hash[i] } 0 <= i && i < len(hash) ==> (tree.GetValueArray())[i] == hash[i])
 func (tree *PrefixTree) ComputeHash() (hash [sha256.Size]byte, err error) {
 	if tree == nil {
@@ -275,7 +274,6 @@ func (tree *PrefixTree) ComputeHash() (hash [sha256.Size]byte, err error) {
 			// encoding, but not so important right now because inputs are
 			// fixed-length and this may get changed in the future
 			//@ unfold acc(tree.Inv(), 1/2)
-			//@ unfold acc(tree.InvRec(), 1/2)
 			value /*@ @ @*/ := sha256.Sum256(
 				append( /*@ perm(1/2), @*/ tree.Leaf.Vrf_output[:], tree.Leaf.Commitment[:]...) /*@, perm(1/2) @*/)
 			tree.Value = &value
