@@ -7,22 +7,18 @@ import (
 
 /*@
 pred (t *PrefixTree) Inv() {
-	acc(t, _) && (t != nil ==> acc(t.InvRec(), _))
-}
-
-pred (t PrefixTree) InvRec() {
-	acc(t.Value) &&
-	(t.Leaf != nil ==> acc(t.Leaf, _) && acc(t.Leaf.Inv(), _)) &&
-	(t.Left != nil ==> acc(t.Left, _) && acc(t.Left.Inv(), _)) &&
-	(t.Right != nil ==> acc(t.Right, _) && acc(t.Right.Inv(), _)) &&
-	// One of value, leaf, or both children must be defined
-	(t.Value != nil || t.Leaf != nil || (t.Left != nil && t.Right != nil)) &&
-	// If there's one children, there must be two
-	(t.Left != nil) == (t.Right != nil) &&
-	// Node is either a leaf or has children
-	!((t.Leaf != nil) && (t.Left != nil && t.Right != nil)) &&
-	// If a node's value is defined, its children's values must be defined
-	((t.Value != nil && t.Left != nil && t.Right != nil) ==> (t.Left.Value != nil && t.Right.Value != nil))
+    t != nil ==> (
+        acc(&t.Value, _) &&
+        acc(&t.Leaf,  _) &&
+        acc(&t.Left,  _) &&
+        acc(&t.Right, _) &&
+        (t.Value != nil ==> acc(t.Value, _)) &&
+        (t.Leaf != nil ==> acc(t.Leaf, _) && acc(&(t.Leaf).Vrf_output, _) && acc(&(t.Leaf).Commitment, _)) &&
+        (t.Left  != nil ==> acc(t.Left.Inv(),  _)) &&
+        (t.Right != nil ==> acc(t.Right.Inv(), _)) &&
+        (t.Value != nil || t.Leaf != nil || (t.Left != nil && t.Right != nil)) &&
+        (t.Left == nil) == (t.Right == nil) &&
+        (t.Leaf == nil || (t.Left == nil && t.Right == nil)))
 }
 @*/
 
@@ -31,7 +27,7 @@ pred (t PrefixTree) InvRec() {
 // @ decreases
 // @ pure
 func (t *PrefixTree) GetValue() *[sha256.Size]byte {
-	return /*@ unfolding acc(t.Inv(), _) in unfolding acc(t.InvRec(), _) in @*/ t.Value
+	return /*@ unfolding acc(t.Inv(), _) in @*/ t.Value
 }
 
 // @ requires t != nil
@@ -40,7 +36,7 @@ func (t *PrefixTree) GetValue() *[sha256.Size]byte {
 // @ decreases
 // @ pure
 func (t *PrefixTree) GetValueArray() [sha256.Size]byte {
-	return /*@ unfolding acc(t.Inv(), _) in unfolding acc(t.InvRec(), _) in @*/ *t.Value
+	return /*@ unfolding acc(t.Inv(), _) in @*/ *t.Value
 }
 
 // Recursive prefix tree data structure
@@ -61,15 +57,19 @@ type PrefixTree struct {
 // ascending by steps.Step.Vrf_output and that coPathNodes is sorted ascending
 // too. prefix will be initially empty and reflects the current position in the
 // prefix tree.
-// @ requires forall i int :: { &prefix[i] } 0 <= i && i < len(prefix) ==> acc(&prefix[i], _)
+// @ requires forall i int :: { &prefix[i] } 0 <= i && i < len(prefix) ==> acc(&prefix[i], 1/2)
 // @ requires forall i int :: { steps[i] } 0 <= i && i < len(steps) ==> acc(&steps[i], _)
 // @ requires forall i int :: { coPathNodes[i] } 0 <= i && i < len(coPathNodes) ==> acc(&coPathNodes[i], _)
 // @ ensures err == nil ==> tree != nil && tree.Inv()
+// @ ensures err == nil ==> forall i int :: { &nextSteps[i] } 0 <= i && i < len(nextSteps) ==> acc(&nextSteps[i], _)
+// @ ensures err == nil ==> forall i int :: { &nextNodes[i] } 0 <= i && i < len(nextNodes) ==> acc(&nextNodes[i], _)
+// @ ensures err == nil ==> forall i, j int :: { &nextNodes[i], &nextNodes[j] } 0 <= i && i < len(nextNodes) && 0 <= j && j < len(nextNodes) && i != j ==> &nextNodes[i] != &nextNodes[j]
 func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNodes []NodeValue) (tree *PrefixTree, nextSteps []CompleteBinaryLadderStep, nextNodes []NodeValue, err error) {
 	tree = nil
 	nextSteps = steps
 	nextNodes = coPathNodes
 	err = nil
+	//@ assert forall i, j int :: { &coPathNodes[i], &coPathNodes[j] } 0 <= i && i < len(coPathNodes) && 0 <= j && j < len(coPathNodes) && i != j ==> &coPathNodes[i] != &coPathNodes[j]
 
 	// If there are no more steps to insert into the prefix tree, insert a copath
 	// node at the current subtree.
@@ -80,9 +80,10 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 		} else {
 			val /* @@@ */ := coPathNodes[0]
 			tree = &PrefixTree{Value: &val}
-			//@ fold tree.InvRec()
 			//@ fold tree.Inv()
 			nextNodes = coPathNodes[1:]
+			//@ assert forall i int :: { &nextNodes[i] } 0 <= i && i < len(nextNodes) ==> &nextNodes[i] == &coPathNodes[i+1]
+			//@ assert forall i, j int :: { &nextNodes[i], &nextNodes[j] } 0 <= i && i < len(nextNodes) && 0 <= j && j < len(nextNodes) && i != j ==> &nextNodes[i] != &nextNodes[j]
 			return
 		}
 	}
@@ -95,8 +96,9 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 		return
 	} else if len(prefix) > 0 {
 		//@ invariant 0 <= i && i <= len(prefix)
+		//@ invariant forall j int :: { &prefix[j] } 0 <= j && j < len(prefix) ==> acc(&prefix[j], 1/2)
 		for i := 0; i < len(prefix); i++ {
-			//@ assert 0 <= i && i < len(prefix)
+			//@ assert 0 <= i && 0 <= i && i < len(prefix)
 			b := step.Step.Vrf_output[i/8]
 			bit := ((b >> uint(i%8)) & 1) == 1
 			prefixMatches = prefixMatches && bit == prefix[i]
@@ -109,7 +111,14 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 			// The server tells us that this depth does suffice to identify the
 			// vrf output. Insert the result in one of its children.
 			nextDepth := len(prefix) + 1
-			nextBit := step.Step.Vrf_output[nextDepth/8]>>(nextDepth%8) == 0x01
+			if nextDepth >= len(step.Step.Vrf_output)*8 {
+				err = errors.New("next depth exceeds VRF output size")
+				return
+			}
+			byteIndex := nextDepth / 8
+			//@ assert 0 <= byteIndex && byteIndex < len(step.Step.Vrf_output)
+			b2 := step.Step.Vrf_output[byteIndex]
+			nextBit := ((b2 >> uint(nextDepth%8)) & 1) == 1
 			if nextBit {
 				// Go right
 				if len(coPathNodes) == 0 {
@@ -118,15 +127,21 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 				} else {
 					// As we must recurse right, the left child must be provided as a co
 					// path node.
-					left := &PrefixTree{Value: &coPathNodes[0]}
-					//@ fold left.InvRec()
+					valLeft /* @@@ */ := coPathNodes[0]
+					left := &PrefixTree{Value: &valLeft}
 					//@ fold left.Inv()
-					if right, recSteps, recNodes, e := ToTreeRecursive(append( /*@ perm(1/2), @*/ prefix, true), steps, coPathNodes[1:]); e != nil {
+					tail := coPathNodes[1:]
+					//@ assert forall i, j int :: { &tail[i], &tail[j] } 0 <= i && i < len(tail) && 0 <= j && j < len(tail) && i != j ==> &tail[i] != &tail[j]
+					//@ assert forall i int :: { &tail[i] } 0 <= i && i < len(tail) ==> &tail[i] == &coPathNodes[i+1]
+					// build prefix+true using only read permission on prefix
+					pRight := make([]bool, len(prefix)+1)
+					copy(pRight, prefix /*@, perm(1/2) @*/)
+					pRight[len(prefix)] = true
+					if right, recSteps, recNodes, e := ToTreeRecursive(pRight, steps, tail); e != nil {
 						err = e
 						return
 					} else {
 						tree = &PrefixTree{Left: left, Right: right}
-						//@ fold tree.InvRec()
 						//@ fold tree.Inv()
 						nextSteps = recSteps
 						nextNodes = recNodes
@@ -137,19 +152,26 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 				// Go left. Continue with the algorithm recursively to the right
 				// afterwards. Either, the next step may be inserted there or it is
 				// provided as a co path node.
-				if left, recSteps, recNodes, e := ToTreeRecursive(append( /*@ perm(1/2), @*/ prefix, false), steps, coPathNodes); e != nil {
-					err = e
-					return
-				} else if right, recSteps2, recNodes2, e := ToTreeRecursive(append( /*@ perm(1/2), @*/ prefix, false), recSteps, recNodes); e != nil {
+				//@ assert forall i int :: { &prefix[i] } 0 <= i && i < len(prefix) ==> acc(&prefix[i], 1/2)
+				pLeft1 := make([]bool, len(prefix)+1)
+				copy(pLeft1, prefix /*@, perm(1/2) @*/)
+				pLeft1[len(prefix)] = false
+				if left, recSteps, recNodes, e := ToTreeRecursive(pLeft1, steps, coPathNodes); e != nil {
 					err = e
 					return
 				} else {
-					tree = &PrefixTree{Left: left, Right: right}
-					//@ fold tree.InvRec()
-					//@ fold tree.Inv()
-					nextSteps = recSteps2
-					nextNodes = recNodes2
-					return
+					//@ assert forall i, j int :: { &recSteps[i], &recSteps[j] } 0 <= i && i < len(recSteps) && 0 <= j && j < len(recSteps) && i != j ==> &recSteps[i] != &recSteps[j]
+					//@ assert forall i, j int :: { &recNodes[i], &recNodes[j] } 0 <= i && i < len(recNodes) && 0 <= j && j < len(recNodes) && i != j ==> &recNodes[i] != &recNodes[j]
+					if right, recSteps2, recNodes2, e := ToTreeRecursive(pLeft1, recSteps, recNodes); e != nil {
+						err = e
+						return
+					} else {
+						tree = &PrefixTree{Left: left, Right: right}
+						//@ fold tree.Inv()
+						nextSteps = recSteps2
+						nextNodes = recNodes2
+						return
+					}
 				}
 			}
 		} else if int(step.Result.Depth) == len(prefix) {
@@ -159,9 +181,10 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 			if resultType == Inclusion {
 				leaf /* @@@ */ := step.Step
 				tree = &PrefixTree{Leaf: &leaf}
-				//@ fold tree.InvRec()
 				//@ fold tree.Inv()
 				nextSteps = steps[1:]
+				//@ assert forall i int :: { &nextNodes[i] } 0 <= i && i < len(nextNodes) ==> &nextNodes[i] == &coPathNodes[i]
+				//@ assert forall i, j int :: { &nextNodes[i], &nextNodes[j] } 0 <= i && i < len(nextNodes) && 0 <= j && j < len(nextNodes) && i != j ==> &nextNodes[i] != &nextNodes[j]
 				return
 			} else if resultType == NonInclusionLeaf {
 				if step.Result.Leaf == nil {
@@ -170,16 +193,18 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 				} else {
 					leaf /* @@@ */ := step.Result.Leaf
 					tree = &PrefixTree{Leaf: leaf}
-					//@ fold tree.InvRec()
 					//@ fold tree.Inv()
 					nextSteps = steps[1:]
+					//@ assert forall i int :: { &nextNodes[i] } 0 <= i && i < len(nextNodes) ==> &nextNodes[i] == &coPathNodes[i]
+					//@ assert forall i, j int :: { &nextNodes[i], &nextNodes[j] } 0 <= i && i < len(nextNodes) && 0 <= j && j < len(nextNodes) && i != j ==> &nextNodes[i] != &nextNodes[j]
 					return
 				}
 			} else if resultType == NonInclusionParent {
 				tree = &PrefixTree{Value: &[32]byte{}}
-				//@ fold tree.InvRec()
 				//@ fold tree.Inv()
 				nextSteps = steps[1:]
+				//@ assert forall i int :: { &nextNodes[i] } 0 <= i && i < len(nextNodes) ==> &nextNodes[i] == &coPathNodes[i]
+				//@ assert forall i, j int :: { &nextNodes[i], &nextNodes[j] } 0 <= i && i < len(nextNodes) && 0 <= j && j < len(nextNodes) && i != j ==> &nextNodes[i] != &nextNodes[j]
 				return
 			} else {
 				err = errors.New("invalid result type")
@@ -193,10 +218,12 @@ func ToTreeRecursive(prefix []bool, steps []CompleteBinaryLadderStep, coPathNode
 		err = errors.New("not enough co-path nodes")
 		return
 	} else {
-		tree = &PrefixTree{Value: &coPathNodes[0]}
-		//@ fold tree.InvRec()
+		val /* @@@ */ := coPathNodes[0]
+		tree = &PrefixTree{Value: &val}
 		//@ fold tree.Inv()
 		nextNodes = coPathNodes[1:]
+		//@ assert forall i int :: { &nextNodes[i] } 0 <= i && i < len(nextNodes) ==> &nextNodes[i] == &coPathNodes[i+1]
+		//@ assert forall i, j int :: { &nextNodes[i], &nextNodes[j] } 0 <= i && i < len(nextNodes) && 0 <= j && j < len(nextNodes) && i != j ==> &nextNodes[i] != &nextNodes[j]
 		return
 	}
 }
@@ -239,7 +266,7 @@ func (tree *PrefixTree) HashContent() (hashContent []byte, err error) {
 	hashContent = make([]byte, sha256.Size+1)
 	if tree == nil {
 		return hashContent, nil
-	} else if /*@ unfolding acc(tree.Inv(), _) in unfolding acc(tree.InvRec(), _) in @*/ tree.Left == nil && tree.Right == nil {
+	} else if /*@ unfolding acc(tree.Inv(), _) in @*/ tree.Left == nil && tree.Right == nil {
 		if value /*@ @ @*/, err := tree.ComputeHash(); err != nil {
 			return nil, err
 		} else {
@@ -264,10 +291,10 @@ func (tree *PrefixTree) HashContent() (hashContent []byte, err error) {
 func (tree *PrefixTree) ComputeHash() (hash [sha256.Size]byte, err error) {
 	if tree == nil {
 		return [sha256.Size]byte{}, errors.New("cannot hash empty node")
-	} else if /*@ unfolding acc(tree.Inv(), _) in unfolding acc(tree.InvRec(), _) in @*/ tree.Value != nil {
-		return /*@ unfolding acc(tree.Inv(), _) in unfolding acc(tree.InvRec(), _) in @*/ *tree.Value, nil
-	} else if /*@ unfolding acc(tree.Inv(), _) in unfolding acc(tree.InvRec(), _) in @*/ tree.Left == nil && tree.Right == nil {
-		if /*@ unfolding acc(tree.Inv(), _) in unfolding acc(tree.InvRec(), _) in @*/ tree.Leaf == nil {
+	} else if /*@ unfolding acc(tree.Inv(), _) in @*/ tree.Value != nil {
+		return /*@ unfolding acc(tree.Inv(), _) in @*/ *tree.Value, nil
+	} else if /*@ unfolding acc(tree.Inv(), _) in @*/ tree.Left == nil && tree.Right == nil {
+		if /*@ unfolding acc(tree.Inv(), _) in @*/ tree.Leaf == nil {
 			return [sha256.Size]byte{}, errors.New("neither leaf nor value given for empty node")
 		} else {
 			// TODO: We would have to include length, too, to be compliant with TLS
