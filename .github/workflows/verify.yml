@@ -129,8 +129,7 @@ jobs:
             --module ${{ env.MOD_NAME }} \
             --hyperMode off \
             --recursive \
-            --include "." ".verification" \
-            --includePackages "client"
+            --include "." ".verification"
 
       - name: Verify packages (with hyperMode)
         working-directory: keytrans-verification
